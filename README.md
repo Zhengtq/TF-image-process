@@ -23,10 +23,10 @@ Aims to do the image augment work in tensorflow
 
 10.random jpeg quality 
 
-11.random crop 
+11.random crop(random destination size)
 
 12.random rotate 90
 
 13.random flip_up_down
 
-14.random color distoration
+14.random color distoration(hue, saturation, brightness, saturation, channel edit)
