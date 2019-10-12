@@ -213,7 +213,7 @@ def tf_ran_resize_tur123(image, ran_ratio = 0.5, resize_ratio = 0.5):
     def inner_fun(image, resize_ratio = 0.5):
 
         origin_height, origin_width,_ = image.get_shape().as_list()
-        resize_dest = tf.random_uniform([], minval=int(origin_height * 0.6), maxval=int(origin_height * 1.0))
+        resize_dest = tf.random_uniform([], minval=int(origin_height * 0.6), maxval=int(origin_height * 0.9))
         image = tf_resizes_image(image, resize_dest, resize_dest)
         image = tf_resizes_image(image, origin_height, origin_width)
         return image
@@ -272,8 +272,8 @@ def ran_flip_up_down(image, ran_ratio=0.02):
 
 def random_color_hue(image,ran_ratio = 0.05,ratio=0.4):
 
-    color_range = 5
-    hue_level = 0.01
+    color_range = 30*ratio
+    hue_level = 0.1*ratio
     def all_color_channel_tur(image):
         def add_color_mask_test(image):
             img_shape = image.get_shape().as_list()
@@ -311,95 +311,13 @@ def random_color_hue(image,ran_ratio = 0.05,ratio=0.4):
     image = tf.cond(ran_1<ran_ratio, lambda: produce_img_1(image), lambda: image)
     return image
 
-
-def generate_color_dis_pos(image,ran_ratio = 0.05,ratio=0.4):
-
-    color_range = 100
-
-    def turn_gray(image):                                 
-        image = tf.image.rgb_to_grayscale(image)          
-        image = tf.stack([image, image, image], axis=3)   
-        image = tf.squeeze(image)                         
-        return image                                      
-
-
-    def all_color_channel_tur(image):
-     #   img_shape = image.get_shape().as_list()
-     #   img_shape = [img_shape[0], img_shape[1], 1]
-        img_shape = [280, 280, 1]
-        ran_color_range_0 = tf.random_uniform([], minval=-color_range, maxval=color_range,dtype=tf.float32)
-        color_mask_0 = tf.ones(img_shape, dtype = tf.float32) * ran_color_range_0
-        ran_color_range_1 = tf.random_uniform([], minval=-color_range, maxval=color_range,dtype=tf.float32)
-        color_mask_1 = tf.ones(img_shape, dtype = tf.float32) * ran_color_range_1
-        ran_color_range_2 = tf.random_uniform([], minval=-color_range, maxval=color_range,dtype=tf.float32)
-        color_mask_2 = tf.ones(img_shape, dtype = tf.float32) * ran_color_range_2
-        sep_channels = tf.split(image, 3, 2)
-        sep_channels[0] = tf.add(sep_channels[0], color_mask_0)
-        sep_channels[1] = tf.add(sep_channels[1], color_mask_1)
-        sep_channels[2] = tf.add(sep_channels[2], color_mask_2)
-        image = tf.concat(sep_channels,2)
-        return image
-
-
-    def produce_fake_pos(image):
-        ran = tf.random_uniform([])
-        image = tf.cond(ran<0.5, lambda: turn_gray(image), lambda: image)
-        image = all_color_channel_tur(image)
-        return image
-
-    ran_1 = tf.random_uniform([])
-    image = tf.cond(ran_1<ran_ratio, lambda: produce_fake_pos(image), lambda: image)
-    return image
-
-
-
-def random_erase_np_v2(image, ran_ratio = 0.1):
-
-    def inner_fun(img, sl = 0.02, sh = 0.02, r1 = 0.5):
-	height = img.shape[0]
-	width = img.shape[1]
-	channel = img.shape[2]
-	area = width * height
-
-	erase_area_low_bound = np.round( np.sqrt(sl * area * r1) ).astype(np.int)
-	erase_area_up_bound = np.round( np.sqrt((sh * area) / r1) ).astype(np.int)
-	if erase_area_up_bound < height:
-	    h_upper_bound = erase_area_up_bound
-	else:
-	    h_upper_bound = height
-	if erase_area_up_bound < width:
-	    w_upper_bound = erase_area_up_bound
-	else:
-	    w_upper_bound = width
-
-	h = np.random.randint(erase_area_low_bound, h_upper_bound)
-	w = np.random.randint(erase_area_low_bound, w_upper_bound)
-
-	x1 = np.random.randint(0, height - h)
-	y1 = np.random.randint(0, width - w)
-	img[x1:x1+h, y1:y1+w, :] = np.random.randint(0, 255, size=(h, w, channel)).astype(np.float32)
-	return img
-
-    ran = tf.random_uniform([])
-    image = tf.cond(ran<ran_ratio, lambda:tf.py_func(inner_fun, [image], tf.float32), lambda:image)
-
-    return image
-
-def tf_lower_img_bright(image, ran_ratio = 0.08, bound = [-70, -20]):
-	ran = tf.random_uniform([])
-	bright_range = tf.random_uniform([], minval=bound[0], maxval=bound[1],dtype=tf.float32)
-	image = tf.cond(ran<ran_ratio, lambda:tf.image.adjust_brightness(image, bright_range), lambda:image)
-	return image
-
-
-
 def distort_color(image, color_ordering=0, fast_mode=False, ratio=1.0, scope=None):
 
-  lower_1 = 1-0.6*ratio
-  higher_1 = 1 + 0.6*ratio
-  lower_2 = 1-0.4*ratio
+  lower_1 = 1 - 0.6*ratio
+  higher_1 = 1+0.6*ratio
+  lower_2 = 1 - 0.4 * ratio
   higher_2 = 1+0.4*ratio
-  bright_level = 20
+  bright_level = 35
 
 
 
@@ -447,4 +365,112 @@ def ran_img_color_tur(image, ran_ratio=0.1, ratio = 0.8):
     ran = tf.random_uniform([])
     image = tf.cond(ran<ran_ratio, lambda: img_color_tur(image, ratio=ratio, fast_mode=False), lambda: image)
     return image
+
+
+def random_erase_np_v2(image, ran_ratio = 0.1):
+
+    def inner_fun(img, sl = 0.02, sh = 0.02, r1 = 0.5):
+	height = img.shape[0]
+	width = img.shape[1]
+	channel = img.shape[2]
+	area = width * height
+
+	erase_area_low_bound = np.round( np.sqrt(sl * area * r1) ).astype(np.int)
+	erase_area_up_bound = np.round( np.sqrt((sh * area) / r1) ).astype(np.int)
+	if erase_area_up_bound < height:
+	    h_upper_bound = erase_area_up_bound
+	else:
+	    h_upper_bound = height
+	if erase_area_up_bound < width:
+	    w_upper_bound = erase_area_up_bound
+	else:
+	    w_upper_bound = width
+
+	h = np.random.randint(erase_area_low_bound, h_upper_bound)
+	w = np.random.randint(erase_area_low_bound, w_upper_bound)
+
+	x1 = np.random.randint(0, height - h)
+	y1 = np.random.randint(0, width - w)
+	img[x1:x1+h, y1:y1+w, :] = np.random.randint(0, 255, size=(h, w, channel)).astype(np.float32)
+	return img
+
+    ran = tf.random_uniform([])
+    image = tf.cond(ran<ran_ratio, lambda:tf.py_func(inner_fun, [image], tf.float32), lambda:image)
+
+    return image
+
+def tf_lower_img_bright(image, ran_ratio = 0.08, bound = [-70, -20]):
+	ran = tf.random_uniform([])
+	bright_range = tf.random_uniform([], minval=bound[0], maxval=bound[1],dtype=tf.float32)
+	image = tf.cond(ran<ran_ratio, lambda:tf.image.adjust_brightness(image, bright_range), lambda:image)
+	return image
+
+
+
+
+
+
+
+
+
+
+
+
+def distort_color_neg(image, color_ordering=0, fast_mode=False, ratio=1.0, scope=None):
+
+  lower_1 = 1-0.6*ratio
+  higher_1 = 1
+  lower_2 = 1-0.4*ratio
+  higher_2 = 1
+  bright_level = 35
+
+
+
+  with tf.name_scope(scope, 'distort_color', [image]):
+    if fast_mode:
+      if color_ordering == 0:
+        image = tf.image.random_brightness(image, max_delta=bright_level)
+        image = tf.image.random_saturation(image, lower=lower_1, upper=higher_1)
+      else:
+        image = tf.image.random_saturation(image, lower=lower_1, upper=higher_1)
+        image = tf.image.random_brightness(image, max_delta=bright_level)
+    else:
+      if color_ordering == 0:
+        image = tf.image.random_brightness(image, max_delta=bright_level)
+        image = tf.image.random_saturation(image, lower=lower_1, upper=higher_1)
+    #    image = random_color_hue(image)
+        image = tf.image.random_contrast(image, lower=lower_2, upper=higher_2)
+      elif color_ordering == 1:
+        image = tf.image.random_saturation(image, lower=lower_1, upper=higher_1)
+        image = tf.image.random_brightness(image, max_delta=bright_level)
+        image = tf.image.random_contrast(image, lower=lower_2, upper=higher_2)
+   #     image = random_color_hue(image)
+      elif color_ordering == 2:
+        image = tf.image.random_contrast(image, lower=lower_2, upper=higher_2)
+    #    image = random_color_hue(image)
+        image = tf.image.random_brightness(image, max_delta=bright_level)
+        image = tf.image.random_saturation(image, lower=lower_1, upper=higher_1)
+      elif color_ordering == 3:
+    #    image = random_color_hue(image)
+        image = tf.image.random_saturation(image, lower=lower_1, upper=higher_1)
+        image = tf.image.random_contrast(image, lower=lower_2, upper=higher_2)
+        image = tf.image.random_brightness(image, max_delta=bright_level)
+      else:
+        raise ValueError('color_ordering must be in [0, 3]')
+
+    return tf.clip_by_value(image, 0.0, 255.0)
+
+def img_color_tur_neg(image, ratio=1.0, fast_mode=False):
+    num_distort_cases = 1 if fast_mode else 4
+    image = apply_with_random_selector(image,
+        lambda x, ordering: distort_color(x, ordering, fast_mode=fast_mode, ratio=ratio), num_cases=num_distort_cases)
+    return image
+
+def ran_img_color_tur_neg(image, ran_ratio=0.1, ratio = 0.8):
+    ran = tf.random_uniform([])
+    image = tf.cond(ran<ran_ratio, lambda: img_color_tur(image, ratio=ratio, fast_mode=False), lambda: image)
+    return image
+
+
+
 
